@@ -86,6 +86,16 @@
             z-index: 2;
         }
 
+        /* Highlight action rows */
+        tr.action-row td {
+            background-color: #fffdf5;
+        }
+
+        tr.action-row td.sticky-col {
+            background-color: #fefce8;
+            color: #854d0e;
+        }
+
         .super-header {
             text-align: center;
             border-bottom: 2px solid #cbd5e1;
@@ -253,7 +263,9 @@
         "TARGET",
         "STOP LOSS",
         "P/L",
-        "STATUS"
+        "STATUS",
+        "EDIT ACTION",
+        "DELETE ACTION"
     ];
 
     const columns = [
@@ -275,6 +287,11 @@
     // Build Table Rows
     fields.forEach((field, fIdx) => {
         const tr = document.createElement("tr");
+        const isActionRow = (field === "EDIT ACTION" || field === "DELETE ACTION");
+        if (isActionRow) {
+            tr.classList.add("action-row");
+        }
+
         let html = `<td class="sticky-col"><strong>${field}</strong></td>`;
         
         columns.forEach((col, cIdx) => {
@@ -316,7 +333,7 @@
         }
     }
 
-    // Reset All back to Read Only (keeps disabled ones disabled)
+    // Reset All back to Read Only (keeps locked ones locked)
     function resetAll() {
         document.querySelectorAll('input[type="checkbox"]').forEach(chk => {
             if (!chk.disabled) {
