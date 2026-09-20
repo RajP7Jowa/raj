@@ -15,7 +15,7 @@
         body {
             background-color: #f1f5f9;
             color: #1e293b;
-            padding: 0px;
+            padding: 12px;
             display: flex;
             justify-content: center;
         }
@@ -26,7 +26,7 @@
             background: #ffffff;
             border-radius: 10px;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-            padding: 8px;
+            padding: 16px;
         }
 
         h2 {
@@ -86,7 +86,7 @@
             z-index: 2;
         }
 
-        /* Highlight action rows */
+        /* Action rows styling */
         tr.action-row td {
             background-color: #fffdf5;
         }
@@ -127,7 +127,7 @@
             cursor: pointer;
         }
 
-        /* Disabled row / container styling */
+        /* Disabled container styling */
         .check-container.is-disabled {
             cursor: not-allowed;
             opacity: 0.6;
@@ -144,7 +144,7 @@
             min-width: 58px;
         }
 
-        .status-text.editable {
+        .status-text.active {
             color: #15803d;
         }
 
@@ -206,15 +206,15 @@
 <body>
 
 <div class="container">
-    <h2>Field Permissions Matrix Form</h2>
-    <p class="subtitle">Default is <strong>Read only</strong> (Unchecked). Check the box to make it <strong>Editable</strong>.</p>
+    <h2>Field & Action Permissions Matrix Form</h2>
+    <p class="subtitle">Data Fields: <strong>Read only</strong> / <strong>Editable</strong>. Action Rows: <strong>Disabled</strong> / <strong>Enabled</strong>.</p>
 
     <form id="matrixForm">
         <div class="table-wrapper">
             <table>
                 <thead>
                     <tr>
-                        <th rowspan="2" class="sticky-col">Field Name</th>
+                        <th rowspan="2" class="sticky-col">Field / Action</th>
                         <th colspan="5" class="super-header user-group">USER SECTION</th>
                         <th colspan="5" class="super-header admin-group">ADMIN SECTION</th>
                     </tr>
@@ -242,7 +242,7 @@
 
         <div class="btn-container">
             <button type="button" class="btn-submit" onclick="generateJSON()">Submit & Generate JSON</button>
-            <button type="button" class="btn-reset" onclick="resetAll()">Reset All to Read only</button>
+            <button type="button" class="btn-reset" onclick="resetAll()">Reset All to Default</button>
             <button type="button" class="btn-copy" id="copyBtn" style="display:none;" onclick="copyJSON()">Copy JSON</button>
         </div>
     </form>
@@ -302,17 +302,21 @@
             const disabledAttr = isUserFieldLocked ? "disabled" : "";
             const disabledClass = isUserFieldLocked ? "is-disabled" : "";
             const textClass = isUserFieldLocked ? "locked" : "";
+            
+            // Initial label: 'Disabled' for action rows, 'Read only' for standard rows
+            const defaultLabel = isActionRow ? "Disabled" : "Read only";
 
             html += `
                 <td>
                     <label class="check-container ${disabledClass}" for="${checkId}">
                         <input type="checkbox" id="${checkId}" 
                                data-field="${field}" 
+                               data-is-action="${isActionRow}"
                                data-section="${col.section}" 
                                data-tab="${col.tab}" 
                                ${disabledAttr}
                                onchange="onCheckChange(this)">
-                        <span class="status-text ${textClass}" id="lbl_${checkId}">Read only</span>
+                        <span class="status-text ${textClass}" id="lbl_${checkId}">${defaultLabel}</span>
                     </label>
                 </td>
             `;
@@ -324,16 +328,18 @@
     // Toggle Label on Check/Uncheck
     function onCheckChange(chk) {
         const label = document.getElementById(`lbl_${chk.id}`);
+        const isAction = chk.getAttribute("data-is-action") === "true";
+
         if (chk.checked) {
-            label.textContent = "Editable";
-            label.classList.add("editable");
+            label.textContent = isAction ? "Enabled" : "Editable";
+            label.classList.add("active");
         } else {
-            label.textContent = "Read only";
-            label.classList.remove("editable");
+            label.textContent = isAction ? "Disabled" : "Read only";
+            label.classList.remove("active");
         }
     }
 
-    // Reset All back to Read Only (keeps locked ones locked)
+    // Reset All back to Defaults
     function resetAll() {
         document.querySelectorAll('input[type="checkbox"]').forEach(chk => {
             if (!chk.disabled) {
@@ -349,7 +355,7 @@
     function generateJSON() {
         const result = {
             metadata: {
-                form_type: "Field Permissions Matrix",
+                form_type: "Field & Action Permissions Matrix",
                 submitted_at: new Date().toISOString()
             },
             permissions: {}
@@ -357,20 +363,23 @@
 
         // Initialize structure
         fields.forEach(field => {
+            const isAction = (field === "EDIT ACTION" || field === "DELETE ACTION");
+            const defaultValue = isAction ? "Disabled" : "Read only";
+
             result.permissions[field] = {
                 User: {
-                    "Open Position": "Read only",
-                    "Activated": "Read only",
-                    "Holding": "Read only",
-                    "History": "Read only",
-                    "Rejected": "Read only"
+                    "Open Position": defaultValue,
+                    "Activated": defaultValue,
+                    "Holding": defaultValue,
+                    "History": defaultValue,
+                    "Rejected": defaultValue
                 },
                 Admin: {
-                    "Open Position": "Read only",
-                    "Activated": "Read only",
-                    "Holding": "Read only",
-                    "History": "Read only",
-                    "Rejected": "Read only"
+                    "Open Position": defaultValue,
+                    "Activated": defaultValue,
+                    "Holding": defaultValue,
+                    "History": defaultValue,
+                    "Rejected": defaultValue
                 }
             };
         });
@@ -380,8 +389,13 @@
             const field = chk.getAttribute("data-field");
             const section = chk.getAttribute("data-section");
             const tab = chk.getAttribute("data-tab");
+            const isAction = chk.getAttribute("data-is-action") === "true";
             
-            result.permissions[field][section][tab] = chk.checked ? "Editable" : "Read only";
+            if (isAction) {
+                result.permissions[field][section][tab] = chk.checked ? "Enabled" : "Disabled";
+            } else {
+                result.permissions[field][section][tab] = chk.checked ? "Editable" : "Read only";
+            }
         });
 
         const jsonString = JSON.stringify(result, null, 2);
