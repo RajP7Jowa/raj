@@ -15,7 +15,7 @@
         body {
             background-color: #f1f5f9;
             color: #1e293b;
-            padding: 4px;
+            padding: 12px;
             display: flex;
             justify-content: center;
         }
@@ -26,7 +26,7 @@
             background: #ffffff;
             border-radius: 10px;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-            padding: 4px;
+            padding: 16px;
         }
 
         h2 {
@@ -46,11 +46,13 @@
             margin-bottom: 24px;
             border: 1px solid #cbd5e1;
             border-radius: 6px;
+            max-width: 100%;
         }
 
         table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             font-size: 12px;
             text-align: left;
         }
@@ -58,13 +60,30 @@
         th, td {
             padding: 10px 10px;
             border-bottom: 1px solid #e2e8f0;
+            border-right: 1px solid #e2e8f0;
             white-space: nowrap;
+            background-color: #ffffff;
         }
 
         th {
             background-color: #f8fafc;
             color: #334155;
             font-weight: 700;
+        }
+
+        /* Freeze (Sticky) First Column */
+        th.sticky-col, td.sticky-col {
+            position: sticky;
+            left: 0;
+            z-index: 3;
+            background-color: #f8fafc;
+            border-right: 2px solid #cbd5e1;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+        }
+
+        td.sticky-col {
+            background-color: #ffffff;
+            z-index: 2;
         }
 
         .super-header {
@@ -98,6 +117,16 @@
             cursor: pointer;
         }
 
+        /* Disabled row / container styling */
+        .check-container.is-disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .check-container input[type="checkbox"]:disabled {
+            cursor: not-allowed;
+        }
+
         .status-text {
             font-size: 11px;
             font-weight: 600;
@@ -107,6 +136,11 @@
 
         .status-text.editable {
             color: #15803d;
+        }
+
+        .status-text.locked {
+            color: #94a3b8;
+            font-style: italic;
         }
 
         .btn-container {
@@ -170,19 +204,19 @@
             <table>
                 <thead>
                     <tr>
-                        <th rowspan="2">Field Name</th>
+                        <th rowspan="2" class="sticky-col">Field Name</th>
                         <th colspan="5" class="super-header user-group">USER SECTION</th>
                         <th colspan="5" class="super-header admin-group">ADMIN SECTION</th>
                     </tr>
                     <tr>
-                        <!-- User Columns with History next to Holding -->
+                        <!-- User Columns -->
                         <th>Open Position</th>
                         <th>Activated</th>
                         <th>Holding</th>
                         <th>History</th>
                         <th>Rejected</th>
 
-                        <!-- Admin Columns with History next to Holding -->
+                        <!-- Admin Columns -->
                         <th>Open Position</th>
                         <th>Activated</th>
                         <th>Holding</th>
@@ -222,7 +256,6 @@
         "STATUS"
     ];
 
-    // Added History directly beside Holding
     const columns = [
         { section: "User", tab: "Open Position" },
         { section: "User", tab: "Activated" },
@@ -242,19 +275,27 @@
     // Build Table Rows
     fields.forEach((field, fIdx) => {
         const tr = document.createElement("tr");
-        let html = `<td><strong>${field}</strong></td>`;
+        let html = `<td class="sticky-col"><strong>${field}</strong></td>`;
         
         columns.forEach((col, cIdx) => {
             const checkId = `chk_${fIdx}_${cIdx}`;
+            
+            // Disable User section for 'USER' field
+            const isUserFieldLocked = (field === "USER" && col.section === "User");
+            const disabledAttr = isUserFieldLocked ? "disabled" : "";
+            const disabledClass = isUserFieldLocked ? "is-disabled" : "";
+            const textClass = isUserFieldLocked ? "locked" : "";
+
             html += `
                 <td>
-                    <label class="check-container" for="${checkId}">
+                    <label class="check-container ${disabledClass}" for="${checkId}">
                         <input type="checkbox" id="${checkId}" 
                                data-field="${field}" 
                                data-section="${col.section}" 
                                data-tab="${col.tab}" 
+                               ${disabledAttr}
                                onchange="onCheckChange(this)">
-                        <span class="status-text" id="lbl_${checkId}">Read only</span>
+                        <span class="status-text ${textClass}" id="lbl_${checkId}">Read only</span>
                     </label>
                 </td>
             `;
@@ -275,11 +316,13 @@
         }
     }
 
-    // Reset All back to Read Only
+    // Reset All back to Read Only (keeps disabled ones disabled)
     function resetAll() {
         document.querySelectorAll('input[type="checkbox"]').forEach(chk => {
-            chk.checked = false;
-            onCheckChange(chk);
+            if (!chk.disabled) {
+                chk.checked = false;
+                onCheckChange(chk);
+            }
         });
         document.getElementById("jsonOutput").style.display = "none";
         document.getElementById("copyBtn").style.display = "none";
@@ -321,16 +364,13 @@
             const section = chk.getAttribute("data-section");
             const tab = chk.getAttribute("data-tab");
             
-            // Checkbox checked = Editable, Unchecked = Read only
             result.permissions[field][section][tab] = chk.checked ? "Editable" : "Read only";
         });
 
         const jsonString = JSON.stringify(result, null, 2);
         
-        // Output to Browser Console (for dev checking)
         console.log("Submitted Configuration JSON:", result);
 
-        // Display in UI
         const outputPre = document.getElementById("jsonOutput");
         outputPre.textContent = jsonString;
         outputPre.style.display = "block";
